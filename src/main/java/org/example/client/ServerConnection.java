@@ -140,10 +140,7 @@ import java.io.*;
 import java.net.Socket;
 import java.util.function.Consumer;
 
-/**
- * Gère la connexion TCP au serveur.
- * Tous les messages entrants sont transmis à un écouteur sur le thread JavaFX.
- */
+
 public class ServerConnection {
 
     private static final Logger journal = LoggerFactory.getLogger(ServerConnection.class);
@@ -156,7 +153,7 @@ public class ServerConnection {
     private Consumer<JsonObject> ecouteurMessages;
     private Consumer<String>     ecouteurErreurs;
 
-    // Flag pour distinguer une déconnexion volontaire d'une perte de connexion
+
     private volatile boolean deconnexionVolontaire = false;
 
     public ServerConnection(Consumer<JsonObject> ecouteurMessages, Consumer<String> ecouteurErreurs) {
@@ -170,7 +167,7 @@ public class ServerConnection {
             socket = new Socket(HOTE, PORT);
             sortie = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true);
 
-            // Écouter les messages entrants dans un thread démon
+
             Thread lecteur = new Thread(this::bouctureLecture);
             lecteur.setDaemon(true);
             lecteur.start();
@@ -190,7 +187,7 @@ public class ServerConnection {
             }
         } catch (IOException e) {
             journal.warn("Connexion au serveur perdue : {}", e.getMessage());
-            // RG10 — notifier uniquement si la déconnexion n'est pas volontaire
+
             if (!deconnexionVolontaire) {
                 Platform.runLater(() -> ecouteurErreurs.accept(
                         "Connexion au serveur perdue. Vous êtes hors ligne."));
@@ -202,7 +199,7 @@ public class ServerConnection {
         if (sortie != null) sortie.println(obj.toString());
     }
 
-    /** Permet au ChatController de remplacer les écouteurs après la connexion. */
+
     public void setMessageListener(Consumer<JsonObject> ecouteur) {
         this.ecouteurMessages = ecouteur;
     }
@@ -218,7 +215,7 @@ public class ServerConnection {
         } catch (IOException ignore) {}
     }
 
-    // -------------------- constructeurs de commodité --------------------
+
 
     public void sendLogin(String nomUtilisateur, String motDePasse) {
         JsonObject requete = new JsonObject();
