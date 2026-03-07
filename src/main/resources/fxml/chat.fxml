@@ -11,28 +11,35 @@
     <left>
         <VBox prefWidth="290" minWidth="250" styleClass="sidebar">
             <HBox alignment="CENTER_LEFT" spacing="10" styleClass="sidebar-header">
+                <StackPane fx:id="avatarMoi" minWidth="40" maxWidth="40" minHeight="40" maxHeight="40"/>
                 <VBox HBox.hgrow="ALWAYS" spacing="1">
                     <Label fx:id="labelUtilisateurCourant" text="Utilisateur"
                            styleClass="sidebar-title"/>
                     <Label text="En ligne" style="-fx-text-fill: #00A884; -fx-font-size: 12px;"/>
                 </VBox>
+                <Button fx:id="boutonTheme" text="🌙" onAction="#basculerTheme" styleClass="logout-btn">
+                    <tooltip><Tooltip text="Mode sombre / clair"/></tooltip>
+                </Button>
                 <Button text="📴" onAction="#gererDeconnexion" styleClass="logout-btn">
                     <tooltip><Tooltip text="Se déconnecter"/></tooltip>
                 </Button>
             </HBox>
-            <HBox style="-fx-background-color: #F0F2F5; -fx-padding: 8 12 10 12;">
+
+            <!-- Barre de recherche – styles via classes CSS pour supporter le dark mode -->
+            <HBox styleClass="search-area">
                 <HBox alignment="CENTER_LEFT" spacing="8" HBox.hgrow="ALWAYS"
-                      style="-fx-background-color: white; -fx-background-radius: 20;
-                             -fx-padding: 7 14; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 4, 0, 0, 1);">
-                    <Label text="🔍" style="-fx-font-size: 12px; -fx-text-fill: #8696A0;"/>
-                    <Label text="Rechercher ou démarrer une discussion"
-                           style="-fx-text-fill: #8696A0; -fx-font-size: 12px;"/>
+                      styleClass="search-box">
+                    <Label text="🔍" styleClass="search-icon"/>
+                    <TextField fx:id="champRecherche"
+                               promptText="Rechercher ou démarrer une discussion"
+                               styleClass="search-input"
+                               HBox.hgrow="ALWAYS"/>
                 </HBox>
             </HBox>
+
             <Label text="UTILISATEURS" styleClass="section-label" maxWidth="Infinity"/>
             <ListView fx:id="listeVueUtilisateurs" VBox.vgrow="ALWAYS"
-                      styleClass="list-view"
-                      style="-fx-background-color: white;"/>
+                      styleClass="list-view"/>
         </VBox>
     </left>
 
@@ -49,17 +56,12 @@
                     <Label fx:id="labelStatutDiscussion" text=""
                            styleClass="chat-status"/>
                 </VBox>
-                <Button text="⋮"
-                        style="-fx-background-color: transparent; -fx-text-fill: #8696A0;
-                               -fx-font-size: 20px; -fx-cursor: hand; -fx-border-color: transparent;
-                               -fx-padding: 0 6;"/>
+                <Button text="⋮" styleClass="menu-btn"/>
             </HBox>
             <ListView fx:id="listeVueMessages" VBox.vgrow="ALWAYS"
                       styleClass="list-view chat-bg"/>
             <HBox alignment="CENTER" spacing="10" styleClass="input-area">
-                <Button text="😊"
-                        style="-fx-background-color: transparent; -fx-font-size: 20px;
-                               -fx-cursor: hand; -fx-border-color: transparent; -fx-padding: 4;"/>
+                <Button fx:id="boutonEmoji" text="😊" onAction="#afficherEmojiPicker" styleClass="emoji-btn"/>
                 <TextField fx:id="champMessage"
                            promptText="Tapez un message…"
                            styleClass="message-input"

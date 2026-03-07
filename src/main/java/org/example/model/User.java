@@ -24,6 +24,21 @@ public class User {
     @Column(name = "date_creation", nullable = false)
     private LocalDateTime dateCreation = LocalDateTime.now();
 
+    /**
+     * Photo de profil en binaire brut (PostgreSQL : bytea).
+     *
+     * Pourquoi bytea et pas TEXT/base64 ?
+     *  - 33 % plus compact en base (pas de surcoût d'encodage base64)
+     *  - Hibernate 6 / Jakarta Persistence mappe byte[] ↔ bytea nativement
+     *  - Lecture directe depuis la DB sans re-décodage côté serveur
+     *  - Pas de risque de corruption de caractères (données purement binaires)
+     *
+     * Transport réseau (JSON TCP) : on encode/décode en base64 uniquement
+     * lors de l'envoi/réception (dans ClientHandler et ChatController).
+     */
+    @Column(name = "photo_profil", columnDefinition = "bytea")
+    private byte[] photoProfil;
+
     public enum Statut { EN_LIGNE, HORS_LIGNE }
 
     public User() {}
@@ -44,4 +59,6 @@ public class User {
     public void setStatut(Statut statut)                   { this.statut = statut; }
     public LocalDateTime getDateCreation()                 { return dateCreation; }
     public void setDateCreation(LocalDateTime dateCreation){ this.dateCreation = dateCreation; }
+    public byte[] getPhotoProfil()                         { return photoProfil; }
+    public void setPhotoProfil(byte[] photoProfil)         { this.photoProfil = photoProfil; }
 }

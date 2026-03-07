@@ -7,8 +7,18 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import org.example.client.ServerConnection;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Base64;
 
 public class RegistreController {
 
@@ -17,8 +27,44 @@ public class RegistreController {
     @FXML private PasswordField champConfirmation;
     @FXML private Label         labelErreur;
     @FXML private Button        boutonInscription;
+    @FXML private ImageView     imagePreview;
+    @FXML private Label         labelIconePhoto;
+    @FXML private Circle        cerclePhoto;
 
     private ServerConnection connexion;
+    private String photoBase64 = null;
+
+    @FXML
+    private void choisirPhoto() {
+        FileChooser fc = new FileChooser();
+        fc.setTitle("Choisir une photo de profil");
+        fc.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg", "*.gif")
+        );
+        File fichier = fc.showOpenDialog(champNomUtilisateur.getScene().getWindow());
+        if (fichier == null) return;
+
+        if (fichier.length() > 500_000) {
+            afficherErreur("Image trop grande (max 500 Ko).");
+            return;
+        }
+
+        try {
+            byte[] bytes = Files.readAllBytes(fichier.toPath());
+            photoBase64 = Base64.getEncoder().encodeToString(bytes);
+
+            Image img = new Image(fichier.toURI().toString(), 80, 80, true, true);
+            imagePreview.setImage(img);
+            Circle clip = new Circle(40, 40, 40);
+            imagePreview.setClip(clip);
+            imagePreview.setVisible(true);
+            labelIconePhoto.setVisible(false);
+            cerclePhoto.setFill(Color.TRANSPARENT);
+            effacerErreur();
+        } catch (IOException e) {
+            afficherErreur("Impossible de lire l'image.");
+        }
+    }
 
     @FXML
     private void gererInscription() {
@@ -49,7 +95,7 @@ public class RegistreController {
             return;
         }
 
-        connexion.sendRegister(nomUtilisateur, motDePasse);
+        connexion.sendRegister(nomUtilisateur, motDePasse, photoBase64);
     }
 
     private void surReceptionMessage(JsonObject json) {
