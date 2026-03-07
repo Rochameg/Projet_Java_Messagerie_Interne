@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.net.Socket;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -91,6 +92,15 @@ public class ClientHandler implements Runnable {
         }
 
         User utilisateur = new User(nomU, PasswordUtil.hash(mdp));  // RG9
+        // Décodage base64 → byte[] pour stockage binaire (bytea PostgreSQL)
+        if (requete.has("photoProfil") && !requete.get("photoProfil").getAsString().isEmpty()) {
+            try {
+                byte[] photoBytes = Base64.getDecoder().decode(requete.get("photoProfil").getAsString());
+                utilisateur.setPhotoProfil(photoBytes);
+            } catch (IllegalArgumentException e) {
+                journal.warn("Photo de profil invalide pour {} : {}", nomU, e.getMessage());
+            }
+        }
         daoUtilisateur.sauvegarder(utilisateur);
         journal.info("Nouvel utilisateur inscrit : {}", nomU);
         envoyer(succes("REGISTER_SUCCESS", "Inscription réussie."));
@@ -243,9 +253,13 @@ public class ClientHandler implements Runnable {
             JsonObject o = new JsonObject();
             o.addProperty("username", u.getNomUtilisateur());
 
-
             boolean estConnecte = Server.getHandler(u.getNomUtilisateur()) != null;
             o.addProperty("status", estConnecte ? "EN_LIGNE" : "HORS_LIGNE");
+            // Encodage byte[] → base64 pour transport JSON (protocole texte TCP)
+            String photoB64 = (u.getPhotoProfil() != null && u.getPhotoProfil().length > 0)
+                    ? Base64.getEncoder().encodeToString(u.getPhotoProfil())
+                    : "";
+            o.addProperty("photoProfil", photoB64);
 
             tableau.add(o);
         }

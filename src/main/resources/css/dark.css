@@ -1,0 +1,134 @@
+/* ============================================================
+   AppMessagerie – Thème sombre (palette WhatsApp dark)
+   ============================================================ */
+
+.root {
+    -fx-background-color: #0B141A;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+    -fx-background-color: #111B21;
+    -fx-border-color: transparent #1F2C34 transparent transparent;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0, 2, 0);
+}
+
+.sidebar-header {
+    -fx-background-color: linear-gradient(to bottom, #233138, #202C33);
+    -fx-border-color: transparent transparent #1F2C34 transparent;
+}
+
+.sidebar-title {
+    -fx-text-fill: #E9EDEF;
+}
+
+.section-label {
+    -fx-background-color: #111B21;
+    -fx-text-fill: #8696A0;
+}
+
+/* ── Barre de recherche ── */
+.search-area {
+    -fx-background-color: #111B21;
+}
+
+.search-box {
+    -fx-background-color: #2A3942;
+    -fx-effect: none;
+}
+
+.search-icon {
+    -fx-text-fill: #8696A0;
+}
+
+.search-input {
+    -fx-text-fill: #E9EDEF;
+    -fx-prompt-text-fill: #8696A0;
+}
+
+/* ── ListView ── */
+.list-view {
+    -fx-background-color: #111B21;
+}
+
+.list-view .list-cell {
+    -fx-background-color: #111B21;
+}
+
+.list-view .list-cell:hover {
+    -fx-background-color: #182229;
+}
+
+/* ── Zone de messages ── */
+.chat-bg {
+    -fx-background-color: #0B141A;
+}
+
+.chat-header {
+    -fx-background-color: linear-gradient(to bottom, #233138, #202C33);
+    -fx-border-color: transparent transparent #1F2C34 transparent;
+}
+
+.chat-name {
+    -fx-text-fill: #E9EDEF;
+}
+
+.chat-status {
+    -fx-text-fill: #00A884;
+}
+
+/* ── Zone de saisie ── */
+.input-area {
+    -fx-background-color: linear-gradient(to top, #233138, #202C33);
+    -fx-border-color: #1F2C34 transparent transparent transparent;
+}
+
+.message-input {
+    -fx-background-color: #2A3942;
+    -fx-text-fill: #E9EDEF;
+    -fx-prompt-text-fill: #8696A0;
+    -fx-effect: none;
+}
+
+.message-input:focused {
+    -fx-effect: dropshadow(gaussian, rgba(0,168,132,0.2), 8, 0.0, 0, 0);
+}
+
+/* ── Bulles ── */
+.message-envoye {
+    -fx-background-color: #005C4B;
+    -fx-text-fill: #E9EDEF;
+}
+
+.message-recu {
+    -fx-background-color: #202C33;
+    -fx-text-fill: #E9EDEF;
+}
+
+/* ── Boutons ── */
+.logout-btn {
+    -fx-text-fill: #8696A0;
+}
+
+.logout-btn:hover {
+    -fx-background-color: rgba(255,255,255,0.07);
+    -fx-text-fill: #E9EDEF;
+}
+
+.menu-btn {
+    -fx-text-fill: #8696A0;
+}
+
+.menu-btn:hover {
+    -fx-background-color: rgba(255,255,255,0.07);
+    -fx-text-fill: #E9EDEF;
+}
+
+.emoji-btn:hover {
+    -fx-background-color: rgba(0,168,132,0.15);
+}
+
+/* ── Scroll bar ── */
+.scroll-bar:vertical .thumb {
+    -fx-background-color: rgba(255,255,255,0.12);
+}

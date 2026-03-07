@@ -95,11 +95,14 @@ public class ServerConnection {
         envoyer(requete);
     }
 
-    public void sendRegister(String nomUtilisateur, String motDePasse) {
+    public void sendRegister(String nomUtilisateur, String motDePasse, String photoBase64) {
         JsonObject requete = new JsonObject();
         requete.addProperty("type", "REGISTER");
         requete.addProperty("username", nomUtilisateur);
         requete.addProperty("password", motDePasse);
+        if (photoBase64 != null && !photoBase64.isEmpty()) {
+            requete.addProperty("photoProfil", photoBase64);
+        }
         envoyer(requete);
     }
 

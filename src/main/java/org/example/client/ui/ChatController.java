@@ -5,16 +5,26 @@ import com.google.gson.JsonObject;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.stage.Popup;
 import org.example.client.ServerConnection;
 
+import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class ChatController {
 
@@ -22,22 +32,34 @@ public class ChatController {
     @FXML private Label          labelDiscussionAvec;
     @FXML private Label          labelStatutDiscussion;
     @FXML private StackPane      avatarContact;
+    @FXML private StackPane      avatarMoi;
+    @FXML private Button         boutonTheme;
+    @FXML private Button         boutonEmoji;
     @FXML private ListView<HBox> listeVueMessages;
     @FXML private ListView<HBox> listeVueUtilisateurs;
     @FXML private TextField      champMessage;
+    @FXML private TextField      champRecherche;
 
     private String           utilisateurCourant;
     private String           utilisateurSelectionne;
     private ServerConnection connexion;
+    private boolean          modeSombre = false;
+    private Popup            emojiPopup = null;
 
+    private final Map<Long, Label>    labelsMetaEnvoyes   = new HashMap<>();
+    private final Map<String, String> photosUtilisateurs  = new HashMap<>();
+    private final List<JsonObject>    tousLesUtilisateurs = new ArrayList<>();
 
-    private final Map<Long, Label> labelsMetaEnvoyes = new HashMap<>();
-
-    private static final String[] COULEURS_AVATAR = {
-            "#F44336", "#E91E63", "#9C27B0", "#673AB7",
-            "#3F51B5", "#2196F3", "#009688", "#4CAF50",
-            "#FF9800", "#FF5722", "#795548", "#607D8B"
+    // ── Emojis disponibles ──────────────────────────────────────────────────
+    private static final String[] EMOJIS = {
+        "😊","😂","😍","🤩","😎","🥰","😘","😜","🤣","😁",
+        "😢","😭","😤","😡","🤔","🤗","🥺","😴","🤯","😇",
+        "❤️","💕","💯","🎉","🔥","👍","👎","👏","🙌","🎊",
+        "😆","🤝","💪","🤞","✌️","👀","💀","🙈","😏","🫡",
+        "🍕","🎵","⭐","🌙","☀️","🌈","🦋","🐶","🐱","🍀"
     };
+
+    // ── Initialisation ─────────────────────────────────────────────────────
 
     public void initialiser(String nomUtilisateur, ServerConnection conn) {
         this.utilisateurCourant = nomUtilisateur;
@@ -55,8 +77,106 @@ public class ChatController {
         });
 
         champMessage.setOnAction(e -> gererEnvoi());
+        champRecherche.textProperty().addListener((obs, ancien, nouveau) ->
+                filtrerUtilisateurs(nouveau));
+
         conn.requestUserList();
     }
+
+    // ── Thème sombre / clair ────────────────────────────────────────────────
+
+    @FXML
+    private void basculerTheme() {
+        java.net.URL url = getClass().getResource("/css/dark.css");
+        if (url == null) {
+            System.err.println("[Theme] dark.css introuvable dans le classpath !");
+            return;
+        }
+        String darkCss = url.toExternalForm();
+        modeSombre = !modeSombre;
+
+        /*
+         * IMPORTANT : on ajoute dark.css dans les stylesheets du NŒUD RACINE
+         * (même niveau que style.css chargé via FXML). Si on l'ajoutait dans
+         * scene.getStylesheets(), les feuilles du nœud auraient une priorité
+         * supérieure et écraserait dark.css → les backgrounds ne changeraient pas.
+         */
+        Parent root = champMessage.getScene().getRoot();
+        if (modeSombre) {
+            if (!root.getStylesheets().contains(darkCss))
+                root.getStylesheets().add(darkCss);
+            boutonTheme.setText("☀️");
+        } else {
+            root.getStylesheets().remove(darkCss);
+            boutonTheme.setText("🌙");
+        }
+        // Fermer le popup emoji pour le recréer avec le bon thème
+        if (emojiPopup != null && emojiPopup.isShowing()) emojiPopup.hide();
+        emojiPopup = null;
+
+        // Reconstruire la liste pour que les lignes Java adoptent les bonnes couleurs
+        filtrerUtilisateurs(champRecherche != null ? champRecherche.getText() : "");
+    }
+
+    // ── Emoji picker ────────────────────────────────────────────────────────
+
+    @FXML
+    private void afficherEmojiPicker() {
+        if (emojiPopup != null && emojiPopup.isShowing()) {
+            emojiPopup.hide();
+            return;
+        }
+        emojiPopup = construireEmojiPopup();
+        javafx.geometry.Bounds b = boutonEmoji.localToScreen(boutonEmoji.getBoundsInLocal());
+        // Afficher au-dessus du bouton (la hauteur ~270px est estimée)
+        emojiPopup.show(boutonEmoji, b.getMinX() - 10, b.getMinY() - 276);
+    }
+
+    private Popup construireEmojiPopup() {
+        FlowPane grille = new FlowPane(3, 3);
+        grille.setPrefWrapLength(290);
+        grille.setPadding(new Insets(10));
+        grille.setStyle(modeSombre
+                ? "-fx-background-color: #233138; -fx-background-radius: 14;"
+                  + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 18, 0, 0, 6);"
+                : "-fx-background-color: white; -fx-background-radius: 14;"
+                  + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 18, 0, 0, 6);");
+
+        String hoverColor   = modeSombre ? "#2A3942" : "#E8F5E9";
+        String normalBg     = "transparent";
+
+        for (String emoji : EMOJIS) {
+            Button btn = new Button(emoji);
+            btn.setStyle(
+                "-fx-background-color: " + normalBg + ";"
+                + " -fx-font-size: 21px; -fx-cursor: hand;"
+                + " -fx-border-color: transparent; -fx-padding: 4 5;"
+                + " -fx-background-radius: 8;");
+            btn.setOnMouseEntered(e ->
+                btn.setStyle("-fx-background-color: " + hoverColor + ";"
+                    + " -fx-font-size: 21px; -fx-cursor: hand;"
+                    + " -fx-border-color: transparent; -fx-padding: 4 5;"
+                    + " -fx-background-radius: 8;"));
+            btn.setOnMouseExited(e ->
+                btn.setStyle("-fx-background-color: " + normalBg + ";"
+                    + " -fx-font-size: 21px; -fx-cursor: hand;"
+                    + " -fx-border-color: transparent; -fx-padding: 4 5;"
+                    + " -fx-background-radius: 8;"));
+            btn.setOnAction(e -> {
+                champMessage.appendText(emoji);
+                champMessage.requestFocus();
+                emojiPopup.hide();
+            });
+            grille.getChildren().add(btn);
+        }
+
+        Popup popup = new Popup();
+        popup.setAutoHide(true);
+        popup.getContent().add(grille);
+        return popup;
+    }
+
+    // ── Conversation ────────────────────────────────────────────────────────
 
     private void ouvrirConversation(String nomU) {
         utilisateurSelectionne = nomU;
@@ -78,6 +198,8 @@ public class ChatController {
         champMessage.clear();
     }
 
+    // ── Réception messages serveur ──────────────────────────────────────────
+
     private void surReceptionMessage(JsonObject json) {
         String type = json.get("type").getAsString();
         switch (type) {
@@ -90,11 +212,40 @@ public class ChatController {
         }
     }
 
+    // ── Liste utilisateurs ──────────────────────────────────────────────────
+
     private void gererListeUtilisateurs(JsonObject json) {
-        listeVueUtilisateurs.getItems().clear();
+        tousLesUtilisateurs.clear();
+        photosUtilisateurs.clear();
         JsonArray utilisateurs = json.getAsJsonArray("users");
         for (int i = 0; i < utilisateurs.size(); i++) {
-            JsonObject u       = utilisateurs.get(i).getAsJsonObject();
+            JsonObject u = utilisateurs.get(i).getAsJsonObject();
+            tousLesUtilisateurs.add(u);
+            String photo = u.has("photoProfil") ? u.get("photoProfil").getAsString() : "";
+            if (!photo.isEmpty()) {
+                photosUtilisateurs.put(u.get("username").getAsString(), photo);
+            }
+            if (u.get("username").getAsString().equals(utilisateurCourant) && avatarMoi != null) {
+                StackPane avatar = construireAvatarCercle(utilisateurCourant, 20);
+                avatarMoi.getChildren().setAll(avatar);
+                avatarMoi.setMinWidth(40);
+                avatarMoi.setMinHeight(40);
+            }
+        }
+        filtrerUtilisateurs(champRecherche != null ? champRecherche.getText() : "");
+    }
+
+    private void filtrerUtilisateurs(String texte) {
+        String filtre = texte == null ? "" : texte.trim().toLowerCase();
+        List<JsonObject> filtres = tousLesUtilisateurs.stream()
+                .filter(u -> u.get("username").getAsString().toLowerCase().contains(filtre))
+                .collect(Collectors.toList());
+        afficherUtilisateurs(filtres);
+    }
+
+    private void afficherUtilisateurs(List<JsonObject> liste) {
+        listeVueUtilisateurs.getItems().clear();
+        for (JsonObject u : liste) {
             String nomU        = u.get("username").getAsString();
             boolean estEnLigne = "EN_LIGNE".equals(u.get("status").getAsString());
             boolean cEstMoi    = nomU.equals(utilisateurCourant);
@@ -104,8 +255,10 @@ public class ChatController {
             ligne.setAlignment(Pos.CENTER_LEFT);
             ligne.setPadding(new Insets(10, 16, 10, 14));
             ligne.setUserData(nomU);
+
+            String couleurSelec = modeSombre ? "#182229" : "#E8F5E9";
             if (estSelec) {
-                ligne.setStyle("-fx-background-color: #E8F5E9; -fx-cursor: hand;"
+                ligne.setStyle("-fx-background-color: " + couleurSelec + "; -fx-cursor: hand;"
                         + " -fx-border-color: #00A884 transparent transparent transparent;"
                         + " -fx-border-width: 0 0 0 3;");
             } else {
@@ -115,8 +268,9 @@ public class ChatController {
             VBox infos = new VBox(2);
             HBox.setHgrow(infos, javafx.scene.layout.Priority.ALWAYS);
 
+            String couleurNom = modeSombre ? "#E9EDEF" : "#111B21";
             Label labelNom = new Label(nomU + (cEstMoi ? "  (moi)" : ""));
-            labelNom.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #111B21;"
+            labelNom.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: " + couleurNom + ";"
                     + (cEstMoi ? " -fx-font-style: italic;" : ""));
 
             Label labelStatut = new Label(estEnLigne ? "En ligne" : "Hors ligne");
@@ -135,32 +289,24 @@ public class ChatController {
         }
     }
 
+    // ── Messages ────────────────────────────────────────────────────────────
+
     private void gererMessageEntrant(JsonObject json) {
         String expediteur = json.get("sender").getAsString();
         if (expediteur.equals(utilisateurSelectionne))
-            ajouterMessage(
-                    expediteur,
+            ajouterMessage(expediteur,
                     json.get("content").getAsString(),
                     json.get("dateEnvoi").getAsString(),
-                    false,
-                    "RECU",
-                    null
-            );
+                    false, "RECU", null);
     }
 
     private void gererConfirmationEnvoi(JsonObject json) {
-        // Le serveur indique si le destinataire était en ligne (RECU) ou non (ENVOYE)
         String statut = json.has("statut") ? json.get("statut").getAsString() : "ENVOYE";
         Long   idMsg  = json.has("id")     ? json.get("id").getAsLong()        : null;
-
-        ajouterMessage(
-                utilisateurCourant,
+        ajouterMessage(utilisateurCourant,
                 json.get("content").getAsString(),
                 json.get("dateEnvoi").getAsString(),
-                true,
-                statut,
-                idMsg
-        );
+                true, statut, idMsg);
     }
 
     private void gererHistorique(JsonObject json) {
@@ -173,34 +319,25 @@ public class ChatController {
             boolean cEstMoi = m.get("sender").getAsString().equals(utilisateurCourant);
             String statut   = m.has("statut") ? m.get("statut").getAsString() : "ENVOYE";
             Long   idMsg    = m.has("id")     ? m.get("id").getAsLong()        : null;
-
-            ajouterMessage(
-                    m.get("sender").getAsString(),
+            ajouterMessage(m.get("sender").getAsString(),
                     m.get("content").getAsString(),
                     m.get("dateEnvoi").getAsString(),
-                    cEstMoi,
-                    statut,
-                    idMsg
-            );
+                    cEstMoi, statut, idMsg);
         }
     }
 
-
     private void gererMessageLivre(JsonObject json) {
         if (!json.has("id")) return;
-        Long idMsg    = json.get("id").getAsLong();
+        Long idMsg      = json.get("id").getAsLong();
         Label labelMeta = labelsMetaEnvoyes.get(idMsg);
         if (labelMeta != null) {
-
-            String contenuActuel = labelMeta.getText();
-
-            if (contenuActuel.endsWith(" \u2713") && !contenuActuel.endsWith(" \u2713\u2713")) {
-                labelMeta.setText(contenuActuel.replace(" \u2713", " \u2713\u2713"));
+            String contenu = labelMeta.getText();
+            if (contenu.endsWith(" \u2713") && !contenu.endsWith(" \u2713\u2713")) {
+                labelMeta.setText(contenu.replace(" \u2713", " \u2713\u2713"));
                 labelMeta.setStyle("-fx-font-size: 10px; -fx-text-fill: #53BDEB; -fx-padding: 1 4 0 4;");
             }
         }
     }
-
 
     private void ajouterMessage(String expediteur, String contenu, String date,
                                 boolean cEstMoi, String statut, Long idMsg) {
@@ -208,45 +345,30 @@ public class ChatController {
         bulle.setWrapText(true);
         bulle.setMaxWidth(460);
         bulle.setPadding(new Insets(9, 14, 9, 14));
-        if (cEstMoi) {
-            bulle.setStyle("-fx-background-color: #D9FDD3;"
-                    + " -fx-background-radius: 16 2 16 16; -fx-font-size: 13.5px;"
-                    + " -fx-text-fill: #111B21;"
-                    + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 3, 0, 0, 1);");
-        } else {
-            bulle.setStyle("-fx-background-color: white;"
-                    + " -fx-background-radius: 2 16 16 16; -fx-font-size: 13.5px;"
-                    + " -fx-text-fill: #111B21;"
-                    + " -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 3, 0, 0, 1);");
-        }
+        bulle.getStyleClass().add(cEstMoi ? "message-envoye" : "message-recu");
 
-        String heureSeule = date.length() >= 16 ? date.substring(11, 16) : date;
-
-
-        String coches     = "";
-        String couleurCoche = "#8696A0"; // gris par défaut
+        String heureSeule   = date.length() >= 16 ? date.substring(11, 16) : date;
+        String coches       = "";
+        String couleurCoche = "#8696A0";
         if (cEstMoi) {
             if ("RECU".equals(statut)) {
-                coches      = "  \u2713\u2713"; // ✓✓ bleu
+                coches      = "  \u2713\u2713";
                 couleurCoche = "#53BDEB";
             } else {
-                coches = "  \u2713";             // ✓ gris
+                coches = "  \u2713";
             }
         }
 
         Label labelMeta = new Label(heureSeule + coches);
         labelMeta.setStyle("-fx-font-size: 10px; -fx-text-fill: " + couleurCoche + "; -fx-padding: 1 4 0 4;");
 
-
-        if (cEstMoi && idMsg != null) {
-            labelsMetaEnvoyes.put(idMsg, labelMeta);
-        }
+        if (cEstMoi && idMsg != null) labelsMetaEnvoyes.put(idMsg, labelMeta);
 
         VBox boite = new VBox(2, bulle, labelMeta);
         boite.setAlignment(cEstMoi ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
         HBox ligne = new HBox();
-        ligne.setPadding(new Insets(3, 16, 3, 16));
+        ligne.setPadding(new Insets(4, 16, 4, 16));
         ligne.setStyle("-fx-background-color: transparent;");
 
         if (cEstMoi) {
@@ -262,18 +384,35 @@ public class ChatController {
         listeVueMessages.scrollTo(listeVueMessages.getItems().size() - 1);
     }
 
+    // ── Avatar ──────────────────────────────────────────────────────────────
+
     private StackPane construireAvatarCercle(String nom, double rayon) {
-        String couleur = COULEURS_AVATAR[Math.abs(nom.hashCode()) % COULEURS_AVATAR.length];
-        Circle cercle  = new Circle(rayon);
-        cercle.setFill(Color.web(couleur));
-        Label initiale = new Label(nom.substring(0, 1).toUpperCase());
-        initiale.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: "
-                + (int)(rayon * 0.85) + "px;");
-        StackPane sp = new StackPane(cercle, initiale);
+        String photo = photosUtilisateurs.get(nom);
+        if (photo != null && !photo.isEmpty()) {
+            try {
+                byte[] bytes = Base64.getDecoder().decode(photo);
+                Image img = new Image(new ByteArrayInputStream(bytes),
+                        rayon * 2, rayon * 2, true, true);
+                if (!img.isError()) {
+                    ImageView iv = new ImageView(img);
+                    iv.setFitWidth(rayon * 2);
+                    iv.setFitHeight(rayon * 2);
+                    Circle clip = new Circle(rayon, rayon, rayon);
+                    iv.setClip(clip);
+                    StackPane sp = new StackPane(iv);
+                    sp.setMinWidth(rayon * 2);
+                    sp.setMinHeight(rayon * 2);
+                    return sp;
+                }
+            } catch (Exception ignored) { }
+        }
+        StackPane sp = new StackPane();
         sp.setMinWidth(rayon * 2);
         sp.setMinHeight(rayon * 2);
         return sp;
     }
+
+    // ── Utilitaires ─────────────────────────────────────────────────────────
 
     private void surErreur(String message) { afficherAlerte(message); }
 
